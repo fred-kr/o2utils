@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "polars[excel,timezone]>=1.26.0",
     "pyjanitor>=0.31.0",
+    "safe-result",
     "scipy>=1.15.2",
 ]
 
@@ -19,3 +20,6 @@ o2utils = "o2utils:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+safe-result = { git = "https://github.com/overflowy/safe-result" }

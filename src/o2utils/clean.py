@@ -1,52 +1,16 @@
 import datetime
-import re
-import unicodedata
 from pathlib import Path
 
 import polars as pl
 import polars.selectors as cs
-
-
-def _normalize_1(name: str) -> str:
-    FIXES = [(r"[ /:,?()\.-]", "_"), (r"['’]", ""), (r"[\xa0]", "_")]
-    for search, replace in FIXES:
-        name = re.sub(pattern=search, repl=replace, string=name)
-    return name
-
-
-def _remove_special(name: str) -> str:
-    return "".join(item for item in name if item.isalnum() or (item == "_"))
-
-
-def _strip_accents(name: str) -> str:
-    return "".join(letter for letter in unicodedata.normalize("NFD", name) if not unicodedata.combining(letter))
-
-
-def _strip_underscores(name: str) -> str:
-    return name.strip("_")
-
-
-def clean_name(
-    name: str, strip_accents: bool = True, strip_underscores: bool = True, remove_special: bool = True
-) -> str:
-    name = name.lower()
-    name = _normalize_1(name)
-    if remove_special:
-        name = _remove_special(name)
-    if strip_accents:
-        name = _strip_accents(name)
-    name = re.sub(pattern="_+", repl="_", string=name)
-    if strip_underscores:
-        name = _strip_underscores(name)
-
-    return name
+from janitor.polars import clean_names
 
 
 def combine_to_datetime(
     date_column: str,
     time_column: str,
     separator: str = " ",
-    format: str = "%d/%m/%Y %H:%M:%S",
+    format: str = "%d/%m/%y %H:%M:%S",
     tz: str | None = None,
     convert_to_tz: str | None = None,
     as_str: bool = True,
@@ -68,15 +32,17 @@ def parse_presens_file(
 ) -> pl.DataFrame:
     file_path = Path(source)
 
-    df = (
+    df: pl.DataFrame = clean_names(
         pl.scan_csv(
             file_path,
             separator=separator,
             skip_rows=skip_rows,
         )
-        .rename(lambda col: clean_name(col))
         .select(cs.by_dtype(pl.Utf8).str.strip_chars())
-        .collect()
+        .collect(),
+        remove_special=True,
+        strip_underscores=True,
+        strip_accents=True,
     )
 
     return df.select(
@@ -106,8 +72,8 @@ def parse_presens_file(
 
 
 def presens_to_csv(
-    presens_folder: str,
-    output_folder: str,
+    presens_folder: Path,
+    output_folder: Path,
     name_mapping: dict[str, str],
     separator: str = ";",
     skip_rows: int = 57,
@@ -119,10 +85,19 @@ def presens_to_csv(
 
     for old, new in renamed.items():
         df = parse_presens_file(old, separator=separator, skip_rows=skip_rows, tz_presens=tz_presens, tz_local=tz_local)
-        first_dtm = datetime.datetime.strptime(df.item(0, "datetime_local"), "%Y-%m-%d %H:%M:%S%z")
+        first_dtm_string = df.item(0, "datetime_local")
+        first_dtm = datetime.datetime.strptime(first_dtm_string, "%Y-%m-%d %H:%M:%S%z")
         new_with_dtm = f"{first_dtm.strftime('%Y%m%dT%H%M%S')}_{new.split('_', 1)[1]}"
         renamed_with_dtm[old] = new_with_dtm, df
 
-    for new, df in renamed_with_dtm.values():
-        out_path = (Path(output_folder) / new).with_suffix(".csv")
+    for _, (dtm_name, df) in renamed_with_dtm.items():
+        out_path = Path(output_folder / dtm_name).with_suffix(".csv")
         df.write_csv(out_path, datetime_format="%Y-%m-%d %H:%M:%S%z")
+
+
+if __name__ == "__main__":
+    presens_folder = Path("E:/dev-home/_readonly_datastore_/2025_HMSC/source_files")
+    output_folder = Path("E:/dev-home/_readonly_datastore_/2025_HMSC/test")
+    name_mapping = pl.read_excel("E:/dev-home/_readonly_datastore_/2025_HMSC/metadata.xlsx", sheet_name="name_map")
+    rename_map = {row[0]: row[1] for row in name_mapping.iter_rows()}
+    presens_to_csv(presens_folder, output_folder, rename_map)
