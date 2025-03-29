@@ -1,0 +1,22 @@
+[project]
+name = "o2utils"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Frederik Krämer", email = "frdrkkraemer@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "polars-ds[all]>=0.8.2",
+    "polars[excel,timezone]>=1.26.0",
+    "pyjanitor>=0.31.0",
+    "scipy>=1.15.2",
+]
+
+[project.scripts]
+o2utils = "o2utils:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
