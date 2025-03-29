@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "polars-ds[all]>=0.8.2",
     "polars[excel,timezone]>=1.26.0",
     "pyjanitor>=0.31.0",
     "scipy>=1.15.2",

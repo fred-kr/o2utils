@@ -1,7 +1,6 @@
 import datetime
 import re
 import unicodedata
-from collections.abc import Sequence
 from pathlib import Path
 
 import polars as pl
@@ -15,7 +14,7 @@ def _normalize_1(name: str) -> str:
     return name
 
 
-def _remove_special(name: Sequence[str]) -> str:
+def _remove_special(name: str) -> str:
     return "".join(item for item in name if item.isalnum() or (item == "_"))
 
 
@@ -32,12 +31,14 @@ def clean_name(
 ) -> str:
     name = name.lower()
     name = _normalize_1(name)
-    if strip_accents:
-        name = _strip_accents(name)
-    if strip_underscores:
-        name = _strip_underscores(name)
     if remove_special:
         name = _remove_special(name)
+    if strip_accents:
+        name = _strip_accents(name)
+    name = re.sub(pattern="_+", repl="_", string=name)
+    if strip_underscores:
+        name = _strip_underscores(name)
+
     return name
 
 
@@ -78,34 +79,29 @@ def parse_presens_file(
         .collect()
     )
 
-    return (
-        df.lazy()
-        .select(
-            pl.lit(file_path.stem).alias("source_file"),
-            (
-                combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", as_str=False)
-                - combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", as_str=False).first()
-            )
-            .dt.total_seconds()
-            .cast(pl.Int32)
-            .alias("time_seconds"),
-            cs.starts_with("logtime").cast(pl.Float64),
-            cs.by_name("oxygen_airsatur", "temp_c", "phase").cast(pl.Float64),
-            pl.col("amp").cast(pl.Int32),
-            combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", tz=tz_presens).alias("datetime_presens"),
-            combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", tz=tz_presens, convert_to_tz=tz_local).alias(
-                "datetime_local"
-            ),
+    return df.select(
+        pl.lit(file_path.stem).alias("source_file"),
+        (
+            combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", as_str=False)
+            - combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", as_str=False).first()
         )
-        .rename(
-            {
-                "oxygen_airsatur": "oxygen",
-                "temp_c": "temperature",
-                "phase": "phase",
-                "amp": "amplitude",
-            }
-        )
-        .collect()
+        .dt.total_seconds()
+        .cast(pl.Int32)
+        .alias("time_seconds"),
+        cs.starts_with("logtime").cast(pl.Float64),
+        cs.by_name("oxygen_airsatur", "temp_c", "phase").cast(pl.Float64),
+        pl.col("amp").cast(pl.Int32),
+        combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", tz=tz_presens).alias("datetime_presens"),
+        combine_to_datetime("date_dd_mm_yy", "time_hh_mm_ss", tz=tz_presens, convert_to_tz=tz_local).alias(
+            "datetime_local"
+        ),
+    ).rename(
+        {
+            "oxygen_airsatur": "oxygen",
+            "temp_c": "temperature",
+            "phase": "phase",
+            "amp": "amplitude",
+        }
     )
 
 
