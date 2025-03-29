@@ -71,4 +71,4 @@ def get_fit(source_file: Path, info_file: str) -> tuple[pl.DataFrame, pl.DataFra
 
     data = pl.read_csv(source_file)
 
-    return linear_fit(data, start=info["analysis_start"], stop=info["analysis_stop"])
+    return linear_fit(data, start=info["analysis_start_seconds"], stop=info["analysis_stop_seconds"])
