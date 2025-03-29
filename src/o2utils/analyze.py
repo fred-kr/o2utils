@@ -66,7 +66,7 @@ def linear_fit(
 
 def get_fit(source_file: Path, info_file: str) -> tuple[pl.DataFrame, pl.DataFrame]:
     info = pl.read_excel(info_file, sheet_name="metadata").row(
-        by_predicate=pl.col("source_file") == source_file.stem, named=True
+        by_predicate=pl.col("cleaned_source_file") == source_file.stem, named=True
     )
 
     data = pl.read_csv(source_file)
