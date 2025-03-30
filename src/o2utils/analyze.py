@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Literal, NamedTuple, TypedDict, cast
 
 import polars as pl
+import polars.selectors as cs
 from scipy import stats
 
 
@@ -118,6 +119,7 @@ def fit_all(
     source_dfs: list[pl.DataFrame] = []
 
     for df in data:
+        df = df.drop(cs.starts_with("logtime"))
         info = cast(
             MetadataRow,
             info_df.row(by_predicate=pl.col("cleaned_source_file") == df.item(0, "source_file"), named=True),
