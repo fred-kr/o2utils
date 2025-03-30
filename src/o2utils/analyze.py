@@ -113,13 +113,14 @@ def fit_all(
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     info_df = pl.read_excel(info_file, sheet_name="metadata")
 
-    data = pl.scan_csv(folder / "*.csv").collect().partition_by("source_file")
+    data = pl.concat(pl.read_csv(f).select(~cs.starts_with("logtime")) for f in folder.glob("*.csv")).partition_by(
+        "source_file", include_key=True
+    )
 
     res_dfs: list[pl.DataFrame] = []
     source_dfs: list[pl.DataFrame] = []
 
     for df in data:
-        df = df.drop(cs.starts_with("logtime"))
         info = cast(
             MetadataRow,
             info_df.row(by_predicate=pl.col("cleaned_source_file") == df.item(0, "source_file"), named=True),
